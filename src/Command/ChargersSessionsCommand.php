@@ -5,36 +5,45 @@ namespace App\Command;
 use App\Domain\ZaptecAPI;
 use Symfony\Component\Console\Attribute\AsCommand;
 use Symfony\Component\Console\Command\Command;
+use Symfony\Component\Console\Input\InputArgument;
 use Symfony\Component\Console\Input\InputInterface;
 use Symfony\Component\Console\Output\OutputInterface;
 use Symfony\Component\Console\Style\SymfonyStyle;
 
 #[AsCommand(
-    name: 'app:chargers:list',
+    name: 'app:chargers:sessions',
     description: 'Add a short description for your command',
 )]
-class ChargersCommand extends Command
+class ChargersSessionsCommand extends Command
 {
     public function __construct(private ZaptecAPI $zaptecAPI)
     {
         parent::__construct();
     }
 
+    protected function configure(): void
+    {
+        $this
+            ->addArgument('charger-id', InputArgument::REQUIRED, 'Charger ID')
+        ;
+    }
+
     protected function execute(InputInterface $input, OutputInterface $output): int
     {
         $io = new SymfonyStyle($input, $output);
+        $chargerId = $input->getArgument('charger-id');
 
-        $chargers = $this->zaptecAPI->getChargers();
+        $sessions = $this->zaptecAPI->getSessions($chargerId);
 
         $table = [];
-        foreach ($chargers as $charger) {
+        foreach ($sessions as $session) {
             $table[] = [
-                $charger->getId(),
-                $charger->getName(),
+                $session->getStartDateTime()->format('d.m.Y H:i'),
+                $session->getEnergy().' kW',
             ];
         }
 
-        $io->table(['id', 'name'], $table);
+        $io->table(['id', 'start', 'energy'], $table);
 
         return Command::SUCCESS;
     }

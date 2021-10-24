@@ -2,7 +2,8 @@
 
 namespace App\Domain;
 
-use App\Domain\Zaptec\Chargers;
+use App\Domain\Zaptec\Charger;
+use App\Domain\Zaptec\Session;
 use Psr\Cache\CacheItemInterface;
 use Symfony\Component\HttpKernel\Exception\AccessDeniedHttpException;
 use Symfony\Contracts\Cache\CacheInterface;
@@ -54,14 +55,42 @@ class ZaptecAPI
         });
     }
 
-    public function getChargers(): Chargers
+    /**
+     * @return list<Charger>
+     */
+    public function getChargers(): array
     {
-        return $this->systemCache->get('_zaptec.chargers', function (CacheItemInterface $item) {
+        return $this->systemCache->get('_zaptec.chargers.v3', function (CacheItemInterface $item) {
             $item->expiresAfter(3600);
 
             $response = $this->zaptecClient->request('GET', '/api/chargers', ['headers' => ['Authorization' => 'Bearer '.$this->getToken()]]);
 
-            return Chargers::fromArray($response->toArray(true));
+            $chargers = $response->toArray(true);
+            $res = [];
+            foreach ($chargers['Data'] as $c) {
+                Charger::fromArray($c);
+            }
+
+            return $res;
+        });
+    }
+
+    /**
+     * @return list<Session>
+     */
+    public function getSessions(string $chargerId): array
+    {
+        return $this->systemCache->get('_zaptec.sessions', function (CacheItemInterface $item) use ($chargerId) {
+            $item->expiresAfter(300);
+            $response = $this->zaptecClient->request('GET', "/api/chargehistory?ChargerId=$chargerId", ['headers' => ['Authorization' => 'Bearer '.$this->getToken()]]);
+
+            $chargers = $response->toArray(true);
+            $res = [];
+            foreach ($chargers['Data'] as $c) {
+                $res[] = Session::fromArray($c);
+            }
+
+            return $res;
         });
     }
 }
