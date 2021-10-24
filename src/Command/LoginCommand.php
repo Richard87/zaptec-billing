@@ -2,6 +2,7 @@
 
 namespace App\Command;
 
+use App\Domain\ZaptecAPI;
 use Symfony\Component\Console\Attribute\AsCommand;
 use Symfony\Component\Console\Command\Command;
 use Symfony\Component\Console\Input\InputArgument;
@@ -9,7 +10,6 @@ use Symfony\Component\Console\Input\InputInterface;
 use Symfony\Component\Console\Input\InputOption;
 use Symfony\Component\Console\Output\OutputInterface;
 use Symfony\Component\Console\Style\SymfonyStyle;
-use Symfony\Contracts\HttpClient\HttpClientInterface;
 
 #[AsCommand(
     name: 'app:login',
@@ -17,26 +17,21 @@ use Symfony\Contracts\HttpClient\HttpClientInterface;
 )]
 class LoginCommand extends Command
 {
-
-    public function __construct(private HttpClientInterface $zaptecClient)
+    public function __construct(
+        private ZaptecAPI $zaptecAPI,
+    )
     {
         parent::__construct();
     }
 
     protected function execute(InputInterface $input, OutputInterface $output): int
     {
-        $io = new SymfonyStyle($input, $output);
-        $arg1 = $input->getArgument('arg1');
+        $io   = new SymfonyStyle($input, $output);
 
-        if ($arg1) {
-            $io->note(sprintf('You passed an argument: %s', $arg1));
-        }
+        $token    = $this->zaptecAPI->getToken();
+        $io->info($token);
 
-        if ($input->getOption('option1')) {
-            // ...
-        }
-
-        $io->success('You have a new command! Now make it your own! Pass --help to see your options.');
+        $io->success('You are logged in.');
 
         return Command::SUCCESS;
     }

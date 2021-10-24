@@ -17,6 +17,16 @@ framework:
     php_errors:
         log: true
 
+
+    http_client:
+        default_options:
+            max_redirects: 7
+        scoped_clients:
+            zaptec.client:
+                headers:
+                    Accept: 'application/json'
+                base_uri: https://api.zaptec.com
+
 when@test:
     framework:
         test: true
