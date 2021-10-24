@@ -15,7 +15,7 @@ class Session
         private string $chargerId,
         private string $deviceName,
         private string $externallyEnded,
-        private array $chargerFirmwareVersion,
+        private ?array $chargerFirmwareVersion,
         private ?string $signedSession,
     ) {
     }
@@ -33,7 +33,7 @@ class Session
             chargerId: $session['ChargerId'],
             deviceName: $session['DeviceName'],
             externallyEnded: $session['ExternallyEnded'],
-            chargerFirmwareVersion: $session['ChargerFirmwareVersion'],
+            chargerFirmwareVersion: $session['ChargerFirmwareVersion'] ?? null,
             signedSession: $session['SignedSession'] ?? null,
         );
     }
@@ -88,7 +88,7 @@ class Session
         return $this->externallyEnded;
     }
 
-    public function getChargerFirmwareVersion(): array
+    public function getChargerFirmwareVersion(): ?array
     {
         return $this->chargerFirmwareVersion;
     }

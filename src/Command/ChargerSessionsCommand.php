@@ -45,7 +45,7 @@ class ChargerSessionsCommand extends Command
         $io = new SymfonyStyle($input, $output);
         /** @var ConsoleOutput $output */
         $tableSection = $output->section();
-        $pbSection = $output->section();
+        $pbSection = $output->getErrorOutput();
 
         $chargerId = $input->getArgument('charger-id');
         $region = $input->getOption('region');
@@ -91,7 +91,6 @@ class ChargerSessionsCommand extends Command
             ]);
             $sumPrice += $chargePrice;
             $sumEnergy += $session->getEnergy();
-            $table->render();
             $pb->advance();
         }
 

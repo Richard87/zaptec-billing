@@ -60,7 +60,7 @@ class ZaptecAPI
      */
     public function getChargers(): array
     {
-        return $this->systemCache->get('_zaptec.chargers.v3', function (CacheItemInterface $item) {
+        return $this->systemCache->get('_zaptec.chargers.v4', function (CacheItemInterface $item) {
             $item->expiresAfter(3600);
 
             $response = $this->zaptecClient->request('GET', '/api/chargers', ['headers' => ['Authorization' => 'Bearer '.$this->getToken()]]);
@@ -68,7 +68,7 @@ class ZaptecAPI
             $chargers = $response->toArray(true);
             $res = [];
             foreach ($chargers['Data'] as $c) {
-                Charger::fromArray($c);
+                $res[] = Charger::fromArray($c);
             }
 
             return $res;
