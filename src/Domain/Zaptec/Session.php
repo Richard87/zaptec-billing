@@ -11,7 +11,7 @@ class Session
         private \DateTime $endDateTime,
         private float $energy,
         private int $commitMetadata,
-        private \DateTime $commitEndDateTime,
+        private ?\DateTime $commitEndDateTime,
         private string $chargerId,
         private string $deviceName,
         private string $externallyEnded,
@@ -29,7 +29,7 @@ class Session
             endDateTime: new \DateTime($session['EndDateTime']),
             energy: $session['Energy'],
             commitMetadata: $session['CommitMetadata'],
-            commitEndDateTime: new \DateTime($session['CommitEndDateTime']),
+            commitEndDateTime: isset($session['CommitEndDateTime']) ? new \DateTime($session['CommitEndDateTime']) : null,
             chargerId: $session['ChargerId'],
             deviceName: $session['DeviceName'],
             externallyEnded: $session['ExternallyEnded'],
@@ -68,7 +68,7 @@ class Session
         return $this->commitMetadata;
     }
 
-    public function getCommitEndDateTime(): \DateTime
+    public function getCommitEndDateTime(): ?\DateTime
     {
         return $this->commitEndDateTime;
     }
