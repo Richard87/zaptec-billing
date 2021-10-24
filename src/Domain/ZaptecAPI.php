@@ -80,7 +80,7 @@ class ZaptecAPI
      */
     public function getSessions(string $chargerId): array
     {
-        return $this->systemCache->get('_zaptec.sessions', function (CacheItemInterface $item) use ($chargerId) {
+        return $this->systemCache->get('_zaptec.sessions.'.$chargerId, function (CacheItemInterface $item) use ($chargerId) {
             $item->expiresAfter(300);
             $response = $this->zaptecClient->request('GET', "/api/chargehistory?ChargerId=$chargerId", ['headers' => ['Authorization' => 'Bearer '.$this->getToken()]]);
 
