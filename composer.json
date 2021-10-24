@@ -15,7 +15,8 @@
         "symfony/framework-bundle": "^5.3",
         "symfony/maker-bundle": "^1.34",
         "symfony/yaml": "^5.3",
-        "symfony/dotenv": "^5.3"
+        "symfony/dotenv": "^5.3",
+        "friendsofphp/php-cs-fixer": "^3.2"
     },
     "autoload": {
         "psr-4": {

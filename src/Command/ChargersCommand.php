@@ -10,14 +10,13 @@ use Symfony\Component\Console\Output\OutputInterface;
 use Symfony\Component\Console\Style\SymfonyStyle;
 
 #[AsCommand(
-    name: 'app:login',
+    name: 'app:chargers',
     description: 'Add a short description for your command',
 )]
-class LoginCommand extends Command
+class ChargersCommand extends Command
 {
-    public function __construct(
-        private ZaptecAPI $zaptecAPI,
-    ) {
+    public function __construct(private ZaptecAPI $zaptecAPI)
+    {
         parent::__construct();
     }
 
@@ -25,10 +24,17 @@ class LoginCommand extends Command
     {
         $io = new SymfonyStyle($input, $output);
 
-        $token = $this->zaptecAPI->getToken();
-        $io->info($token);
+        $chargers = $this->zaptecAPI->getChargers();
 
-        $io->success('You are logged in.');
+        $table = [];
+        foreach ($chargers->getData() as $charger) {
+            $table[] = [
+                $charger->getId(),
+                $charger->getName(),
+            ];
+        }
+
+        $io->table(['id', 'name'], $table);
 
         return Command::SUCCESS;
     }
