@@ -17,6 +17,7 @@ class Session
         private string $externallyEnded,
         private ?array $chargerFirmwareVersion,
         private ?string $signedSession,
+        private ?array $energyDetails,
     ) {
     }
 
@@ -35,6 +36,7 @@ class Session
             externallyEnded: $session['ExternallyEnded'],
             chargerFirmwareVersion: $session['ChargerFirmwareVersion'] ?? null,
             signedSession: $session['SignedSession'] ?? null,
+            energyDetails: array_map(fn (array $a) => SessionEnergyDetail::fromArray($a), $session['EnergyDetails'] ?? []),
         );
     }
 
@@ -51,6 +53,14 @@ class Session
     public function getStartDateTime(): \DateTime
     {
         return $this->startDateTime;
+    }
+
+    /**
+     * @return list<SessionEnergyDetail>|null
+     */
+    public function getEnergyDetails(): ?array
+    {
+        return $this->energyDetails;
     }
 
     public function getEndDateTime(): \DateTime

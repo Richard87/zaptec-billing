@@ -36,8 +36,7 @@ class ChargerSessionsCommand extends Command
             ->addOption('include-price', 'p', InputOption::VALUE_NONE, 'Include price')
             ->addOption('region', 'r', InputOption::VALUE_REQUIRED, 'Region', 'Kr.sand')
             ->addOption('start', null, InputOption::VALUE_REQUIRED, 'Start date, includes sessions ending after at this date')
-            ->addOption('end', null, InputOption::VALUE_REQUIRED, 'End date, includes charges stopped before this date.')
-        ;
+            ->addOption('end', null, InputOption::VALUE_REQUIRED, 'End date, includes charges stopped before this date.');
     }
 
     protected function execute(InputInterface $input, OutputInterface $output): int
@@ -54,7 +53,7 @@ class ChargerSessionsCommand extends Command
         $endDate = $input->getOption('end');
 
         if ($startDate) {
-            $startDate = new \DateTime($startDate);
+            $startDate = new DateTime($startDate);
         }
         if ($endDate) {
             $endDate = new DateTime($endDate);
@@ -65,29 +64,41 @@ class ChargerSessionsCommand extends Command
         $pb = new ProgressBar($pbSection, count($sessions));
 
         $table = new Table($tableSection);
-        $table->setHeaders(['start', 'stop', 'energy', 'price', 'Price']);
+        $table->setHeaders(['start', 'stop', 'energy', 'price']);
 
         $sumEnergy = 0.0;
         $sumPrice = 0.0;
         foreach ($sessions as $key => $session) {
             $chargePrice = 0.0;
-            $averagePrice = 0.0;
             $startTime = $session->getStartDateTime();
             $stopTime = $session->getEndDateTime();
 
-            $include = (!$startDate || ($startDate > $stopTime)) && (!$endDate || ($endDate > $stopTime));
+            if ($addPrice) {
+                foreach ($session->getEnergyDetails() as $detail) {
+                    $include = (!$startDate || ($startDate > $detail->getTimestamp())) && (!$endDate || ($endDate > $detail->getTimestamp()));
+                    if (!$include) {
+                        continue;
+                    }
 
-            if ($addPrice && $include) {
-                $averagePrice = $this->getAveragePrice($startTime, $stopTime, $region);
-                $chargePrice = ($session->getEnergy() / 1000) * $averagePrice;
+                    $timestampPrice = $this->elspotPrice->findPrice($detail->getTimestamp(), $region);
+                    if ($timestampPrice === null) {
+                        throw new DomainException('Could not find price for '.$detail->getTimestamp()->format('c'));
+                    }
+                    $detailPrice = $detail->getEnergy() * ($timestampPrice / 1000);
+                    $chargePrice += $detailPrice;
+                }
+
+                if ($chargePrice < 0.01 && (!$startDate || ($startDate > $stopTime)) && (!$endDate || ($endDate > $stopTime))) {
+                    $averagePrice = $this->getAveragePrice($session->getStartDateTime(), $session->getEndDateTime(), $region);
+                    $chargePrice = $session->getEnergy() * ($averagePrice / 1000);
+                }
             }
 
             $table->addRow([
                 $startTime->format('d.m.Y H:i'),
                 $stopTime->format('d.m.Y H:i'),
                 round($session->getEnergy(), 3).' kW',
-                $addPrice && $include ? round($chargePrice, 2).'kr' : '',
-                $addPrice && $include ? round($averagePrice / 1000, 2).'kr/kw' : '',
+                $addPrice ? round($chargePrice, 2).'kr' : '',
             ]);
             $sumPrice += $chargePrice;
             $sumEnergy += $session->getEnergy();
@@ -100,7 +111,6 @@ class ChargerSessionsCommand extends Command
             '',
             $sumEnergy.' kw',
             $addPrice ? round($sumPrice, 2).' kr' : '',
-            '',
         ]);
         $table->setFooterTitle(count($sessions).'sessions');
         $table->render();

@@ -2,6 +2,13 @@
 
 namespace App\Domain;
 
+use DateTime;
+use DomainException;
+use PhpOffice\PhpSpreadsheet\Reader\Csv;
+use PhpOffice\PhpSpreadsheet\Worksheet\Worksheet;
+use Psr\Cache\CacheItemInterface;
+use Symfony\Contracts\Cache\CacheInterface;
+
 class ElspotPrice
 {
     public const VALID_REGIONS = ['SYS', 'SE1', 'SE2', 'SE3', 'SE4', 'FI', 'DK1', 'DK2',
@@ -17,61 +24,71 @@ class ElspotPrice
 
     private array $loadedFiles = [];
 
-    public function findPrice(\DateTime $date, string $region): ?float
+    public function __construct(private CacheInterface $systemCache)
     {
-        if (!in_array($region, self::VALID_REGIONS)) {
-            throw new \DomainException("Invalid region '$region'!");
-        }
-
-        $year = (int) $date->format('Y');
-        if (!array_key_exists($year, self::SPOT_FILES)) {
-            throw new \DomainException("Invalid year '$year'!");
-        }
-
-        $sheet = $this->getSheet($year);
-
-        $targetColumn = null;
-        foreach ($sheet->getRowIterator(3, 3) as $rowIterator) {
-            foreach ($rowIterator->getCellIterator() as $cell) {
-                if ($cell->getValue() === $region) {
-                    $targetColumn = $cell->getColumn();
-                    break 2;
-                }
-            }
-        }
-
-        if ($targetColumn === null) {
-            throw new \DomainException('Could not find region column!');
-        }
-
-        $targetDate = $date->format('d.m.Y');
-        $targetHour = $date->format('H');
-
-        foreach ($sheet->getRowIterator(4) as $row) {
-            $currentRow = $row->getRowIndex();
-            $date = $sheet->getCellByColumnAndRow(1, $currentRow)->getValue();
-            $hour = $sheet->getCellByColumnAndRow(2, $currentRow)->getValue();
-            $hour = substr($hour, 0, 2);
-
-            if ($date !== $targetDate || $targetHour !== $hour) {
-                continue;
-            }
-
-            $targetCell = $sheet->getCell($targetColumn.$currentRow);
-            $value = $targetCell->getValue();
-            $value = str_replace(',', '.', $value);
-            $value = (float) $value;
-
-            return $value;
-        }
-
-        return null;
     }
 
-    protected function getSheet(int $year): \PhpOffice\PhpSpreadsheet\Worksheet\Worksheet
+    public function findPrice(DateTime $date, string $region): ?float
+    {
+        $key = "_elspot.price.$region.".$date->format('d.m.y.H');
+
+        return $this->systemCache->get($key, function (CacheItemInterface $item) use ($date, $region) {
+            $item->expiresAfter(3600);
+
+            if (!in_array($region, self::VALID_REGIONS)) {
+                throw new DomainException("Invalid region '$region'!");
+            }
+
+            $year = (int) $date->format('Y');
+            if (!array_key_exists($year, self::SPOT_FILES)) {
+                throw new DomainException("Invalid year '$year'!");
+            }
+
+            $sheet = $this->getSheet($year);
+
+            $targetColumn = null;
+            foreach ($sheet->getRowIterator(3, 3) as $rowIterator) {
+                foreach ($rowIterator->getCellIterator() as $cell) {
+                    if ($cell->getValue() === $region) {
+                        $targetColumn = $cell->getColumn();
+                        break 2;
+                    }
+                }
+            }
+
+            if ($targetColumn === null) {
+                throw new DomainException('Could not find region column!');
+            }
+
+            $targetDate = $date->format('d.m.Y');
+            $targetHour = $date->format('H');
+
+            foreach ($sheet->getRowIterator(4) as $row) {
+                $currentRow = $row->getRowIndex();
+                $date = $sheet->getCellByColumnAndRow(1, $currentRow)->getValue();
+                $hour = $sheet->getCellByColumnAndRow(2, $currentRow)->getValue();
+                $hour = substr($hour, 0, 2);
+
+                if ($date !== $targetDate || $targetHour !== $hour) {
+                    continue;
+                }
+
+                $targetCell = $sheet->getCell($targetColumn.$currentRow);
+                $value = $targetCell->getValue();
+                $value = str_replace(',', '.', $value);
+                $value = (float) $value;
+
+                return $value;
+            }
+
+            return null;
+        });
+    }
+
+    protected function getSheet(int $year): Worksheet
     {
         if (!isset($this->loadedFiles[$year])) {
-            $reader = new \PhpOffice\PhpSpreadsheet\Reader\Csv();
+            $reader = new Csv();
             $reader->setReadDataOnly(true);
             $spreadsheet = $reader->load(self::SPOT_FILES[$year]);
 

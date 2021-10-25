@@ -21,31 +21,6 @@ class ZaptecAPI
     ) {
     }
 
-    public function getToken(): string
-    {
-        return (string) $this->systemCache->get(self::ZAPTEC_TOKEN, function (CacheItemInterface $item) {
-            $response = $this->zaptecClient->request('POST', '/oauth/token', [
-                'body' => [
-                    'grant_type' => 'password',
-                    'username' => $this->zaptecUsername,
-                    'password' => $this->zaptecPassword,
-                ],
-            ]);
-
-            if (200 !== $response->getStatusCode()) {
-                throw new AccessDeniedHttpException();
-            }
-
-            $data = $response->toArray(true);
-            $accessToken = $data['access_token'];
-            $expiresIn = (int) $data['expires_in'];
-
-            $item->expiresAfter($expiresIn - 10);
-
-            return $accessToken;
-        });
-    }
-
     public function hasToken(): bool
     {
         return (bool) $this->systemCache->get(self::ZAPTEC_TOKEN, function (CacheItemInterface $item, &$save) {
@@ -75,6 +50,31 @@ class ZaptecAPI
         });
     }
 
+    public function getToken(): string
+    {
+        return (string) $this->systemCache->get(self::ZAPTEC_TOKEN, function (CacheItemInterface $item) {
+            $response = $this->zaptecClient->request('POST', '/oauth/token', [
+                'body' => [
+                    'grant_type' => 'password',
+                    'username' => $this->zaptecUsername,
+                    'password' => $this->zaptecPassword,
+                ],
+            ]);
+
+            if ($response->getStatusCode() !== 200) {
+                throw new AccessDeniedHttpException();
+            }
+
+            $data = $response->toArray(true);
+            $accessToken = $data['access_token'];
+            $expiresIn = (int) $data['expires_in'];
+
+            $item->expiresAfter($expiresIn - 10);
+
+            return $accessToken;
+        });
+    }
+
     /**
      * @return list<Session>
      */
@@ -82,12 +82,18 @@ class ZaptecAPI
     {
         return $this->systemCache->get('_zaptec.sessions.'.$chargerId, function (CacheItemInterface $item) use ($chargerId) {
             $item->expiresAfter(300);
-            $response = $this->zaptecClient->request('GET', "/api/chargehistory?ChargerId=$chargerId", ['headers' => ['Authorization' => 'Bearer '.$this->getToken()]]);
-
-            $chargers = $response->toArray(true);
             $res = [];
-            foreach ($chargers['Data'] as $c) {
-                $res[] = Session::fromArray($c);
+
+            $page = 0;
+            $response = $this->zaptecClient->request('GET', "/api/chargehistory?ChargerId=$chargerId&PageSize=100&PageIndex=$page&DetailLevel=1", ['headers' => ['Authorization' => 'Bearer '.$this->getToken()]]);
+            $chargers = $response->toArray(true);
+            while (count($chargers['Data']) > 0) {
+                ++$page;
+                foreach ($chargers['Data'] as $c) {
+                    $res[] = Session::fromArray($c);
+                }
+                $response = $this->zaptecClient->request('GET', "/api/chargehistory?ChargerId=$chargerId&PageSize=100&PageIndex=$page&DetailLevel=1", ['headers' => ['Authorization' => 'Bearer '.$this->getToken()]]);
+                $chargers = $response->toArray(true);
             }
 
             return $res;
